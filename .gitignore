@@ -3,3 +3,9 @@ venv
 *.pyc
 
 .conda
+
+__pycache__
+
+data/*
+.dodsrc
+record/*
