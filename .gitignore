@@ -9,3 +9,12 @@ __pycache__
 data/*
 .dodsrc
 record/*
+
+# preprocessed data
+*.png
+*.csv
+*.las
+*.pkl
+*.h5
+*.kml
+*log.txt
