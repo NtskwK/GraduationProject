@@ -1,0 +1,15 @@
+services:
+	pytorch-jupyter:
+		image: kuron/pytorch2.5.1-cuda12.4-cudnn9-runtime:latest
+		ports:
+			- "8888:8888"
+			- "8889:22"
+		volumes:
+			- .:/workspace
+		deploy:
+			resources:
+			reservations:
+				devices:
+				- driver: nvidia
+					count: 1
+					capabilities: [gpu]
