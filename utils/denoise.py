@@ -19,7 +19,7 @@ def get_sea_level(df: pd.DataFrame, index: str = "Height (m MSL)"):
 
     # 拟合高斯函数
     mu, sigma = np.mean(heights), np.std(heights)
-    return mu, (mu - 1 * sigma, mu + 1 * sigma)
+    return mu, (mu - 0.5 * sigma, mu + 0.5 * sigma)
 
 
 def get_sea_points(df: pd.DataFrame, index: str = "Height (m MSL)", sea_level: float = None, sea_range: tuple = None, n=0):
