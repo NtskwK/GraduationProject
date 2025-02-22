@@ -1,5 +1,6 @@
 {
     "Codegeex.CommitMessageStyle": "ConventionalCommits",
     "Codegeex.RepoIndex": true,
-    "makefile.configureOnOpen": false
+    "makefile.configureOnOpen": false,
+    "Codegeex.GenerationPreference": "automatic"
 }

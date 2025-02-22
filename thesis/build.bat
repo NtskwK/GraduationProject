@@ -1,0 +1,3 @@
+xelatex GLUTthesis
+biber GLUTthesis
+xelatex GLUTthesis

@@ -21,3 +21,19 @@ record/*
 
 profile.json
 output.json
+
+*.aux
+*.lof
+*.log
+*.lot
+*.out
+*.toc
+*.bbl
+*.blg
+*.thm
+*.nav
+*.xml
+*.snm
+*.bcf
+
+.DS_Store

@@ -1,0 +1,84 @@
+%!TEX root = ../GLUTthesis.tex
+\section{附录1} % 无章节编号
+这里用来存放不应属于正文的内容、典型如代码、图纸、数学证明过程等内容。
+
+物理常数表
+\begin{table}[ht]
+    \centering
+ 
+    \begin{tabular}{lcll}
+    \toprule 
+          常数名称 & 符号 & 计算用值 & 单位 \\
+    \midrule  
+
+      真空中光速 & $c$ & $3.00\times 10^8$ & $\rm~ m\cdot s^{-1}$ \\
+      
+      万有引力常数 & $G$ & $6.67\times 10^{-11}$ & $\rm~ m^3\cdot s^{-2}$ \\
+      
+      阿伏伽德罗常数 & $N$ & $6.02\times 10^{23}$ & $\rm~ mol^{-1}$ \\
+
+      玻尔兹曼常量 & $k$ & $1.38\times 10^{-23}$ & $\rm~ J\cdot K^{-1}$\\
+
+      斯特藩-玻尔兹曼常数 & $\sigma$ & $5.67\times10^{-8}$ & $\rm~ W\cdot m^{-2}\cdot K^{-4}$\\ 
+      
+      理想气体摩尔体积 & $V_m$ & $22.4\times 10^{-3}$ & $\rm~ m^3\cdot mol^{-1}$ \\
+
+      基本电荷 & $e$ & $1.60\times10^{-19}$ & $\rm~ C$\\
+
+      电子静止质量 & $m_e$ & $9.11\times10^{-31}$ & $\rm~ kg$\\
+      
+      电子荷质比 & $e/m$ & $1.76\times10^{-11}$ & $\rm~ C\cdot kg^{-2}$\\
+
+      质子静止质量 & $m_p$ & $1.67\times10^{-27}$ & $\rm~ kg$\\
+      
+      中字静止质量 & $m_n$ & $1.67\times10^{-27}$ & $\rm~ kg$\\
+      
+      $\alpha $粒子静止质量 &   & $6.645\times10^{-27}$ & $\rm~ kg$\\
+
+      氢原子质量 & $m_\mathrm{H}$ & $1.67\times10^{-27}$ & $\rm~ kg$\\
+      
+      真空电导率 & $\varepsilon _0$ & $8.85\times10^{-12}$ & $\rm~ F\cdot m^{-2}$\\
+      
+      真空磁导率 & $\mu _0$ & $12.57\times10^{-7}$ & $\rm~ H\cdot m^{-1}$\\
+      
+      波尔半径 & $\alpha _0$ & $5.29\times10^{-11}$ & $\rm~ m$\\
+      
+      真空磁子 & $\mu _B$ & $9.27\times10^{-24}$ & $\rm~ J\cdot T^{-1}$\\
+      
+      普朗克常量 & $h$ & $6.63\times10^{-34}$ & $\rm~ J\cdot s$\\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{附录2} 
+
+
+这是本设计所用的源程序代码:
+
+\begin{lstlisting}[language={C}, caption={}]
+/*程序：ex1_1.c */
+/*功能：控制一个LED闪烁程序 */
+#include <reg51.h>  /*包含头文件reg51.h，定义了51单片机的专用寄存器*/
+sbit P1_0=P1^0;          	/*定义位名称*/
+/*函数名：delay*/
+/*函数功能：实现软件延时*/
+/*形式参数：无符号整型变量i，控制空循环的循环次数*/
+/*返回值：无
+void delay(unsigned int i) 	/*延时函数*/
+{
+  unsigned int k;
+	for(k=0;k<i;k++);
+}
+void main()                	/*主函数*/
+{
+  while(1){
+     P1_0=0;				/*点亮LED*/
+     delay(10000);			/*调用延时函数，实际参数为10000*/
+     P1_0=1;				/*熄灭LED*/
+     delay(10000);			/*调用延时函数，实际参数为10000*/
+           }
+ }
+
+\end{lstlisting}
