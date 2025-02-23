@@ -9,8 +9,7 @@ from scipy import stats
 
 # from sklearn.cluster import OPTICS
 
-from backup import save2dir, save_figure
-
+from .backup import save2dir,save_figure
 
 def get_normal_distribution(dataX: np.array, n_sigmas: float = 0.5, n: int = 0):
     mu, sigma = stats.norm.fit(dataX)
@@ -64,7 +63,7 @@ def local_domain_distance(df: pd.DataFrame, k: int = 3):
         index (str, optional): _description_. Defaults to "Height (m MSL)".
     """
     x = df["Along-Track (m)"].values
-    h = df["real_height"].values
+    h = df["Height (m MSL)"].values
 
     # 建立距离矩阵
     dist_matrix = np.sqrt((x[:, np.newaxis] - x) ** 2 + (h[:, np.newaxis] - h) ** 2)
@@ -79,28 +78,8 @@ def local_domain_distance(df: pd.DataFrame, k: int = 3):
     return result
 
 
-# 水深校正
-def adjust_height_underwater(height, water_level):
-    # input: Uncorrected water depth
-    # output: Corrected water depth
-    water_depth = height - water_level
-    theta_2 = 1.56387
-    theta_1 = math.pi / 2 - theta_2
-    phi = theta_1 - theta_2
-    ideal_optical_path = water_depth / math.cos(theta_1)
-    actual_optical_path = ideal_optical_path * (1.00029 / 1.33469)
-    straight = math.sqrt(
-        ideal_optical_path**2
-        + actual_optical_path**2
-        + 2 * actual_optical_path * ideal_optical_path * math.cos(phi)
-    )
-    gamma = math.pi / 2 - theta_1
-    alpha = math.asin(actual_optical_path * math.sin(gamma) / straight)
-    beta = gamma - alpha
-    delta_x = straight * math.cos(beta)
-    delta_z = straight * math.sin(beta)
-    real_D = height - delta_z
-    return real_D
+def adjust_height_underwater(X):
+    theta = math.pi / 2 - X
 
 
 def main(path_str):
@@ -126,7 +105,7 @@ def main(path_str):
     plt.title("Depth Histogram")
     fig = plt.gcf()
     fig.show()
-
+    
     backup_dir = Path(os.getcwd()) / "log"
     save_figure(fig, Path("depth_histogram.png"), backup=True, target=backup_dir)
 
@@ -147,11 +126,9 @@ def main(path_str):
     # 水下点
     df.loc[df["Height (m MSL)"] < sea_range[0], "SignalType"] = 2
 
+    underwater_points["adjust_Height"] = adjust_height_underwater(underwater_points)
+
     underwater_points = df[df["SignalType"] == 2]
-    underwater_points["adjust_depth"] = underwater_points["Height (m MSL)"].apply(
-        adjust_height_underwater, args=(sea_level,)
-    )
-    underwater_points["real_height"] = sea_level - underwater_points["adjust_depth"]
     underwater_points["LocalDomainDistance"] = local_domain_distance(underwater_points)
 
     # 领域搜索频率图
@@ -162,7 +139,7 @@ def main(path_str):
     plt.title("LocalDomainDistance Histogram")
     # 图例
     plt.legend
-
+    
     fig = plt.gcf()
     fig.show()
     save_figure(fig, Path("local_domain_distance.png"), backup=True, target=backup_dir)
@@ -195,12 +172,12 @@ def main(path_str):
     )
     # 水下点
     underwater_points[underwater_points["SignalType"] == 2].plot(
-        x="Along-Track (m)", y="real_height", kind="scatter", s=0.5, c="green", ax=ax
+        x="Along-Track (m)", y="Height (m MSL)", kind="scatter", s=0.5, c="green", ax=ax
     )
     # 水下噪声
     underwater_points[underwater_points["SignalType"] == -2].plot(
         x="Along-Track (m)",
-        y="real_height",
+        y="Height (m MSL)",
         kind="scatter",
         s=0.5,
         c="yellow",
@@ -208,18 +185,18 @@ def main(path_str):
     )
     # 添加图例
     ax.legend()
-
+    
     fig = plt.gcf()
     fig.legend()
     fig.show()
-
+    
     img_path = Path("classified.png")
     save_figure(fig, img_path, backup=True, target=backup_dir)
-
+    
     file_name = data_path.stem + "_classified" + ".csv"
     df.to_csv(file_name, index=False)
 
-    # underwater_points.to_csv(file_name + "_underwater_points.csv", index=False)
+    underwater_points.to_csv(file_name + "_underwater_points.csv", index=False)
 
 
 if __name__ == "__main__":
