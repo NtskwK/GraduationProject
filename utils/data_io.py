@@ -8,10 +8,11 @@ import pandas as pd
 
 import settings
 
+
 def save2dir(
     source: Path,
+    backup_name: str,
     target: Path = settings.backup_dir,
-    name: str = None,
     mkdir: bool = True,
     overwrite: bool = False,
     prefix: str = "",
@@ -29,20 +30,20 @@ def save2dir(
     temp = source.parent / temp_name
     fp = shutil.copy(source, temp)
 
-    if name is None:
-        name = source.stem
+    if backup_name is None:
+        backup_name = source.stem
     elif target.is_file():
-        name = target.stem
+        backup_name = target.stem
     else:
-        name = str(name).rstrip(source.suffix)
+        backup_name = str(backup_name).rstrip(source.suffix)
 
     if (not overwrite) and Path(target).exists():
         # Exception("Target already exists")
-        name = name + "_" + datetime.now().strftime("%Y%m%d%H%M%S")
+        backup_name = backup_name + "_" + datetime.now().strftime("%Y%m%d%H%M%S")
     else:
         fp.unlink()
 
-    fp = Path(fp).rename(target / f"{prefix}{name}{suffix}{source.suffix}")
+    fp = Path(fp).rename(target / f"{prefix}{backup_name}{suffix}{source.suffix}")
 
     print(f"Backup {source} to {fp}")
 
@@ -51,23 +52,23 @@ def save2dir(
 
 def save_figure(
     fig: Figure,
-    name: Path = None,
-    backup: bool = False,
+    name: str,
     *args,
+    backup: bool = False,
     **kwargs,
 ) -> bool:
-    
+
     if name is None:
         name = fig.get_label() + ".png"
-        
+
     fig.savefig(name)
-    
+
     fp = Path(name)
-    
+
     if backup:
         fp = save2dir(
             fp,
-            name=name,
+            backup_name=name,
             *args,
             **kwargs,
         )
@@ -77,21 +78,19 @@ def save_figure(
 
 def save_csv(
     df: pd.DataFrame,
-    source: Path = None,
-    tag: str = None,
-    backup: bool = False,
+    source: Path,
+    tag: str,
     *args,
+    backup: bool = False,
     **kwargs,
 ) -> bool:
 
-    assert "Tag is required!"
+    if source:
+        assert source.exists(), "Source file does not exist!"
+        tag = source.stem + "_" + tag
 
-    if source is None:
-        filename ="_" + tag + ".csv"
-    elif source.is_file():
-        filename = source.stem + "_" + tag + ".csv"
     else:
-        assert "Source file does not exist!"
+        filename = "_" + tag + ".csv"
 
     filepath = Path(filename)
 
@@ -101,19 +100,20 @@ def save_csv(
     if backup:
         filepath = save2dir(
             filepath,
-            name=filename,
+            backup_name=filename,
             *args,
             **kwargs,
         )
 
     return filepath.exists()
 
+
 def get_csv(path: Path) -> pd.DataFrame:
     assert path.exists(), "File does not exist"
     assert path.suffix == ".csv", "File is not a csv file"
 
     data = None
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         data = pd.read_csv(f)
 
     assert data is not None, "Failed to read csv file!"
