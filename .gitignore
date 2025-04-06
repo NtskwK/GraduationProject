@@ -1,6 +1,9 @@
 venv
+.venv
 
 *.pyc
+
+*.drawio.bkp
 
 .conda
 
@@ -37,3 +40,6 @@ output.json
 *.bcf
 
 .DS_Store
+
+# package files
+*.7z
