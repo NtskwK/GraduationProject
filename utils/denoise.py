@@ -72,6 +72,34 @@ def get_water_surface_points(
     return sea_surface_points
 
 
+# 水深校正
+def get_real_depth(height, water_level) -> float:
+    # input: Uncorrected water depth
+    # output: Corrected water depth
+    water_depth = height - water_level
+
+    # /gt3l/geolocation/ref_elev
+    theta_2 = 1.56387
+
+    theta_1 = math.pi / 2 - theta_2
+
+    phi = theta_1 - theta_2
+    ideal_optical_path = water_depth / math.cos(theta_1)
+    actual_optical_path = ideal_optical_path * (1.00029 / 1.33469)
+    straight = math.sqrt(
+        ideal_optical_path**2
+        + actual_optical_path**2
+        + 2 * actual_optical_path * ideal_optical_path * math.cos(phi)
+    )
+    gamma = math.pi / 2 - theta_1
+    alpha = math.asin(actual_optical_path * math.sin(gamma) / straight)
+    beta = gamma - alpha
+    delta_x = straight * math.cos(beta)
+    delta_z = straight * math.sin(beta)
+    real_deep = delta_z - height
+    return real_deep
+
+
 def local_domain_distance(
     df: pd.DataFrame,
     x_label: str = "Along-Track (m)",
@@ -110,32 +138,12 @@ def local_domain_distance(
     return result
 
 
-# 水深校正
-def get_real_depth(height, water_level) -> float:
-    # input: Uncorrected water depth
-    # output: Corrected water depth
-    water_depth = height - water_level
-
-    # /gt3l/geolocation/ref_elev
-    theta_2 = 1.56387
-
-    theta_1 = math.pi / 2 - theta_2
-
-    phi = theta_1 - theta_2
-    ideal_optical_path = water_depth / math.cos(theta_1)
-    actual_optical_path = ideal_optical_path * (1.00029 / 1.33469)
-    straight = math.sqrt(
-        ideal_optical_path**2
-        + actual_optical_path**2
-        + 2 * actual_optical_path * ideal_optical_path * math.cos(phi)
-    )
-    gamma = math.pi / 2 - theta_1
-    alpha = math.asin(actual_optical_path * math.sin(gamma) / straight)
-    beta = gamma - alpha
-    delta_x = straight * math.cos(beta)
-    delta_z = straight * math.sin(beta)
-    real_deep = delta_z - height
-    return real_deep
+def evaluating_denoise_results(is_noise: np.ndarray) -> None:
+    print(f"样本数量：{len(is_noise)}")
+    print(f"有效点数量：{sum(is_noise == False)}")
+    print(f"噪声点数量：{sum(is_noise)}")
+    print(f"有效点比例：{sum(is_noise == False) / len(is_noise)}")
+    print(f"噪声点比例：{sum(is_noise) / len(is_noise)}")
 
 
 def optics_clustering_denoise(
@@ -183,6 +191,8 @@ def optics_clustering_denoise(
     is_noise = np.zeros(len(under_water_points), dtype=bool)
     is_noise[noise_points] = True
 
+    evaluating_denoise_results(is_noise)
+
     return is_noise
 
 
@@ -202,11 +212,7 @@ def dbscan_denoise(
     # 创建一个布尔数组，标记噪声点
     is_noise = labels == -1
 
-    print(f"种类：{(set(labels))}")
-    print(f"样本数量：{len(labels)}")
-    print(f"类型数量：{len(set(labels))}")
-    print(f"噪声点数量：{sum(is_noise)}")
-    print(f"噪声点比例：{sum(is_noise) / len(labels)}")
+    evaluating_denoise_results(is_noise)
 
     return is_noise
 
