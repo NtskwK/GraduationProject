@@ -13,6 +13,9 @@ data/*
 .dodsrc
 record/*
 
+log/*
+./*.png
+
 # preprocessed data
 *.png
 *.csv
