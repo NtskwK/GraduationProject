@@ -6,16 +6,31 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from scipy import stats
+from sklearn.cluster import DBSCAN, OPTICS
 
-# from sklearn.cluster import OPTICS
+from utils.data_io import save2dir, save_figure
 
-from backup import save2dir, save_figure
+from enum import Enum
+
+backup_dir = Path(os.getcwd()) / "log"
+
+
+class PointType(Enum):
+    Noise = -1
+    NotClassified = 0
+    WaterSurface = 1
+    LandSurface = 2
 
 
 def get_normal_distribution(dataX: np.array, n_sigmas: float = 0.5, n: int = 0):
+    """
+    # 获得正态分布
+
+    计算n次，每次剔除n_sigmas倍标准差以外的点
+    """
     mu, sigma = stats.norm.fit(dataX)
-    n = n - 1
-    if n >= 0:
+    if n > 0:
+        n = n - 1
         dataX = dataX[(dataX > mu - n_sigmas * sigma) & (dataX < mu + n_sigmas * sigma)]
         return get_normal_distribution(dataX, n_sigmas, n)
     return mu, sigma
@@ -23,6 +38,8 @@ def get_normal_distribution(dataX: np.array, n_sigmas: float = 0.5, n: int = 0):
 
 def get_sea_level(df: pd.DataFrame, index: str = "Height (m MSL)", n_sigmas=0.5):
     """
+    # 获取海平面高度
+
     reference:
 
     https://kns.cnki.net/kcms2/article/abstract?v=2F0E8PSemVMiHlQ-VB7uXDrhTbmBEHKnObtQbKj8I-0N1WBtInpwVYlgS_NzT1cMxRAHxkIYbT-ie7vfyShquZpcOvVf2oT2_inI_xfQRZxtu3JG41aneQpL0wqpInS4aM26WnU3RAhUQAbok4AjqheNlwBbeWMSQADuf4OgZ9ayMd7ha5T3K-efEskmpOWJ&uniplatform=NZKPT&language=CHS
@@ -40,31 +57,39 @@ def get_sea_level(df: pd.DataFrame, index: str = "Height (m MSL)", n_sigmas=0.5)
     return mu, (mu - n_sigmas * sigma, mu + n_sigmas * sigma)
 
 
-def get_sea_points(
+def get_water_surface_points(
     df: pd.DataFrame,
     index: str = "Height (m MSL)",
     sea_level: float = None,
     sea_range: tuple = None,
     n=0,
-):
+) -> pd.DataFrame:
     if sea_level is None or sea_range is None:
         sea_level, sea_range = get_sea_level(df, index)
 
-    sea_points = df[(df[index] >= sea_range[0]) & (df[index] <= sea_range[1])]
+    sea_surface_points = df[(df[index] >= sea_range[0]) & (df[index] <= sea_range[1])]
 
-    return sea_points
+    return sea_surface_points
 
 
-def local_domain_distance(df: pd.DataFrame, k: int = 3):
+def local_domain_distance(
+    df: pd.DataFrame,
+    x: str = "Along-Track (m)",
+    y: str = "Height (m MSL)",
+    k: int = 3,
+    mean: bool = True,
+) -> np.array:
     """
-    局部邻域距离计算
+    获取最近的k个点的距离
 
     Args:
         df (pd.DataFrame): _description_
         index (str, optional): _description_. Defaults to "Height (m MSL)".
+    Outputs:
+        distances (np.array): _description_
     """
-    x = df["Along-Track (m)"].values
-    h = df["real_height"].values
+    x = df[x].values
+    h = df[y].values
 
     # 建立距离矩阵
     dist_matrix = np.sqrt((x[:, np.newaxis] - x) ** 2 + (h[:, np.newaxis] - h) ** 2)
@@ -74,18 +99,25 @@ def local_domain_distance(df: pd.DataFrame, k: int = 3):
     # 排除掉最近的元素（其本身），从第二位开始，取k个元素
     k_nearest_distances = np.partition(dist_matrix, k, axis=1)[:, 1 : k + 1]
     # 在忽略无效值的前提下计算平均值
-    result = np.nanmean(k_nearest_distances, axis=1)
+    if mean:
+        result = np.nanmean(k_nearest_distances, axis=1)
+    else:
+        result = np.nanmax(k_nearest_distances, axis=1)
 
     return result
 
 
 # 水深校正
-def adjust_height_underwater(height, water_level):
+def get_real_depth(height, water_level) -> float:
     # input: Uncorrected water depth
     # output: Corrected water depth
     water_depth = height - water_level
+
+    # /gt3l/geolocation/ref_elev
     theta_2 = 1.56387
+
     theta_1 = math.pi / 2 - theta_2
+
     phi = theta_1 - theta_2
     ideal_optical_path = water_depth / math.cos(theta_1)
     actual_optical_path = ideal_optical_path * (1.00029 / 1.33469)
@@ -99,8 +131,145 @@ def adjust_height_underwater(height, water_level):
     beta = gamma - alpha
     delta_x = straight * math.cos(beta)
     delta_z = straight * math.sin(beta)
-    real_D = height - delta_z
+    real_D = delta_z - height
     return real_D
+
+
+def optics_clustering_denoise(
+    under_water_points: pd.DataFrame,
+    x_lable: str = "Along-Track (m)",
+    y_lable: str = "Height (m MSL)",
+    min_samples: int = 5,
+    xi: float = 0.5,
+    min_cluster_size: float = 0.05,
+    threshold: float = 4.0,
+) -> np.ndarray:
+    """_summary_
+
+    Args:
+        under_water_points (pd.DataFrame): _description_
+        x_lable (str, optional): _description_. Defaults to "Along-Track (m)".
+        y_lable (str, optional): _description_. Defaults to "Height (m MSL)".
+        min_samples (int, optional): 核的邻域内点的数量. Defaults to 5.
+        xi (float, optional): 簇的紧凑程度. Defaults to 0.5.
+        min_cluster_size (float, optional): 簇的最小大小. Defaults to 0.05.
+        threshold (float, optional): 预测可达距离. Defaults to 4.0.
+
+    Returns:
+        is_noise(np.ndarray):
+    """
+    optics = OPTICS(min_samples=min_samples, xi=xi, min_cluster_size=min_cluster_size)
+    optics.fit(under_water_points[[x_lable, y_lable]])
+    # 获取样本的可达性距离
+    reachability = optics.reachability_.copy()
+
+    # 获取样本的排序索引
+    ordering = np.argsort(optics.ordering_)
+
+    # 根据可达性距离和排序索引来判断噪声点
+    noise_points = [i for i in ordering if reachability[i] > threshold]
+
+    # 获取聚类标签
+    labels = optics.labels_
+    print(f"样本数量：{len(reachability)}")
+    print(f"类型数量：{len(set(labels))}")
+    print(f"噪声点数量：{len(noise_points)}")
+    print(f"噪声点比例：{len(noise_points) / len(reachability)}")
+
+    # 创建一个布尔数组，标记噪声点
+    is_noise = np.zeros(len(under_water_points), dtype=bool)
+    is_noise[noise_points] = True
+
+    return is_noise
+
+
+def dbscan_denoise(
+    under_water_points: pd.DataFrame,
+    x_lable: str = "Along-Track (m)",
+    y_lable: str = "Height (m MSL)",
+    eps: float = 0.3,
+    min_samples: int = 5,
+) -> np.ndarray:
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    dbscan.fit(under_water_points[[x_lable, y_lable]])
+
+    # 获取聚类标签
+    labels = dbscan.labels_
+
+    # 创建一个布尔数组，标记噪声点
+    is_noise = labels == -1
+
+    print(f"种类：{(set(labels))}")
+    print(f"样本数量：{len(labels)}")
+    print(f"类型数量：{len(set(labels))}")
+    print(f"噪声点数量：{sum(is_noise)}")
+    print(f"噪声点比例：{sum(is_noise) / len(labels)}")
+
+    return is_noise
+
+
+def adaptive_elliptical_denoise(
+    under_water_points: pd.DataFrame,
+    x_label: str = "Along-Track (m)",
+    y_label: str = "Height (m MSL)",
+    k: int = 10,  # 近邻点数
+    alpha: float = 2.0,  # 椭圆缩放因子
+) -> np.ndarray:
+    """
+    **这个算法的实现是有问题的，不要用！**
+    """
+    # 提取所需的点云数据
+    points = under_water_points[[x_label, y_label]].values
+    num_points = len(points)
+    is_noise = np.ones(num_points, dtype=bool)
+
+    # 一次性计算所有点之间的欧氏距离
+    distances = np.linalg.norm(points[:, np.newaxis] - points, axis=2)
+
+    # 获取每个点的k近邻点的索引
+    k_nearest_indices = np.argsort(distances, axis=1)[:, 1 : k + 1]
+
+    for i in range(num_points):
+        # 获取当前点的k近邻点
+        k_nearest_points = points[k_nearest_indices[i]]
+
+        # 计算k近邻点的协方差矩阵
+        cov_matrix = np.cov(k_nearest_points, rowvar=False)
+
+        # 计算协方差矩阵的特征值和特征向量
+        eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+
+        # 确保特征值为实数
+        eigenvalues = np.real(eigenvalues)
+
+        # 对特征值进行排序
+        sorted_indices = np.argsort(eigenvalues)[::-1]
+        eigenvalues = eigenvalues[sorted_indices]
+        eigenvectors = eigenvectors[:, sorted_indices]
+        # 椭圆的长半轴和短半轴
+        b = alpha * np.sqrt(eigenvalues[0])
+        a = alpha * np.sqrt(eigenvalues[1])
+
+        # 计算所有点到当前点的向量
+        vectors = points - points[i]
+
+        # 将所有向量转换到特征向量基下
+        transformed_vectors = np.dot(vectors, eigenvectors)
+
+        # 判断所有点是否在椭圆内
+        in_ellipse = (transformed_vectors[:, 0] ** 2 / a**2) + (
+            transformed_vectors[:, 1] ** 2 / b**2
+        ) < 1
+
+        # 更新当前点的噪声标记
+        if all(in_ellipse):
+            is_noise[i] = False
+
+    print(f"样本数量：{num_points}")
+    print(f"噪声点数量：{sum(is_noise)}")
+    print(f"噪声点比例：{sum(is_noise) / num_points}")
+
+    return is_noise
 
 
 def main(path_str):
@@ -127,7 +296,6 @@ def main(path_str):
     fig = plt.gcf()
     fig.show()
 
-    backup_dir = Path(os.getcwd()) / "log"
     save_figure(fig, Path("depth_histogram.png"), backup=True, target=backup_dir)
 
     # 选择频率最高的深度为参考海平面
@@ -149,23 +317,25 @@ def main(path_str):
 
     underwater_points = df[df["SignalType"] == 2]
     underwater_points["adjust_depth"] = underwater_points["Height (m MSL)"].apply(
-        adjust_height_underwater, args=(sea_level,)
+        get_real_depth, args=(sea_level,)
     )
     underwater_points["real_height"] = sea_level - underwater_points["adjust_depth"]
-    underwater_points["LocalDomainDistance"] = local_domain_distance(underwater_points)
+    underwater_points["LocalDomainDistance"] = local_domain_distance(
+        underwater_points, k=1
+    )
 
-    # 领域搜索频率图
-    plt.clf()
-    plt.hist(underwater_points["LocalDomainDistance"], bins="auto")
-    plt.xlabel("LocalDomainDistance")
-    plt.ylabel("Frequency")
-    plt.title("LocalDomainDistance Histogram")
-    # 图例
-    plt.legend
+    # # 领域搜索频率图
+    # plt.clf()
+    # plt.hist(underwater_points["LocalDomainDistance"], bins="auto")
+    # plt.xlabel("LocalDomainDistance")
+    # plt.ylabel("Frequency")
+    # plt.title("LocalDomainDistance Histogram")
+    # # 图例
+    # plt.legend
 
-    fig = plt.gcf()
-    fig.show()
-    save_figure(fig, Path("local_domain_distance.png"), backup=True, target=backup_dir)
+    # fig = plt.gcf()
+    # fig.show()
+    # save_figure(fig, Path("local_domain_distance.png"), backup=True, target=backup_dir)
 
     mu = np.mean(underwater_points["LocalDomainDistance"])
     sigma = np.std(underwater_points["LocalDomainDistance"])
@@ -181,37 +351,43 @@ def main(path_str):
     plt.clf()
     fig, ax = plt.subplots()
     ax.set_title("Classified Data")
-    # 未分类
-    df[df["SignalType"] == 0].plot(
-        x="Along-Track (m)", y="Height (m MSL)", kind="scatter", s=0.5, c="gray", ax=ax
-    )
-    # 水面点
-    df[df["SignalType"] == 1].plot(
-        x="Along-Track (m)", y="Height (m MSL)", kind="scatter", s=0.5, c="blue", ax=ax
-    )
-    # 水上噪声
-    df[df["SignalType"] == -1].plot(
-        x="Along-Track (m)", y="Height (m MSL)", kind="scatter", s=0.5, c="red", ax=ax
-    )
+    # # 未分类
+    # df[df["SignalType"] == 0].plot(
+    #     x="Along-Track (m)", y="Height (m MSL)", kind="scatter", s=0.5, c="gray", ax=ax
+    # )
+    # # 水面点
+    # df[df["SignalType"] == 1].plot(
+    #     x="Along-Track (m)", y="Height (m MSL)", kind="scatter", s=0.5, c="blue", ax=ax
+    # )
+    # # 水上噪声
+    # df[df["SignalType"] == -1].plot(
+    #     x="Along-Track (m)", y="Height (m MSL)", kind="scatter", s=0.5, c="red", ax=ax
+    # )
     # 水下点
     underwater_points[underwater_points["SignalType"] == 2].plot(
-        x="Along-Track (m)", y="real_height", kind="scatter", s=0.5, c="green", ax=ax
+        # x="Along-Track (m)", y="real_height", kind="scatter", s=0.5, c="green", ax=ax
+        x="Along-Track (m)",
+        y="Height (m MSL)",
+        kind="scatter",
+        s=0.5,
+        c="green",
+        ax=ax,
     )
     # 水下噪声
     underwater_points[underwater_points["SignalType"] == -2].plot(
         x="Along-Track (m)",
-        y="real_height",
+        # y="real_height",
+        y="Height (m MSL)",
         kind="scatter",
         s=0.5,
         c="yellow",
         ax=ax,
     )
     # 添加图例
-    ax.legend()
+    plt.legend(loc="best")
 
     fig = plt.gcf()
-    fig.legend()
-    fig.show()
+    plt.show()
 
     img_path = Path("classified.png")
     save_figure(fig, img_path, backup=True, target=backup_dir)

@@ -9,7 +9,7 @@ from scipy import stats
 
 # from sklearn.cluster import OPTICS
 
-from .backup import save2dir,save_figure
+from .data_io import save2dir,save_figure
 
 def get_normal_distribution(dataX: np.array, n_sigmas: float = 0.5, n: int = 0):
     mu, sigma = stats.norm.fit(dataX)
@@ -76,10 +76,6 @@ def local_domain_distance(df: pd.DataFrame, k: int = 3):
     result = np.nanmean(k_nearest_distances, axis=1)
 
     return result
-
-
-def adjust_height_underwater(X):
-    theta = math.pi / 2 - X
 
 
 def main(path_str):
