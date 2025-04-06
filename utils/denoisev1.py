@@ -7,11 +7,14 @@ import pandas as pd
 from pathlib import Path
 from scipy import stats
 
+from utils.denoise import get_real_depth
+
 # from sklearn.cluster import OPTICS
 
 from .data_io import save2dir,save_figure
 
-def get_normal_distribution(dataX: np.array, n_sigmas: float = 0.5, n: int = 0):
+
+def get_normal_distribution(dataX: np.ndarray, n_sigmas: float = 0.5, n: int = 0):
     mu, sigma = stats.norm.fit(dataX)
     n = n - 1
     if n >= 0:
@@ -41,10 +44,9 @@ def get_sea_level(df: pd.DataFrame, index: str = "Height (m MSL)", n_sigmas=0.5)
 
 def get_sea_points(
     df: pd.DataFrame,
-    index: str = "Height (m MSL)",
-    sea_level: float = None,
-    sea_range: tuple = None,
-    n=0,
+    sea_level: float,
+    sea_range: tuple,
+    index: str = "Height (m MSL)"
 ):
     if sea_level is None or sea_range is None:
         sea_level, sea_range = get_sea_level(df, index)
@@ -101,7 +103,7 @@ def main(path_str):
     plt.title("Depth Histogram")
     fig = plt.gcf()
     fig.show()
-    
+
     backup_dir = Path(os.getcwd()) / "log"
     save_figure(fig, Path("depth_histogram.png"), backup=True, target=backup_dir)
 
@@ -121,8 +123,8 @@ def main(path_str):
 
     # 水下点
     df.loc[df["Height (m MSL)"] < sea_range[0], "SignalType"] = 2
-
-    underwater_points["adjust_Height"] = adjust_height_underwater(underwater_points)
+    underwater_points = df[df["SignalType"] == 2]
+    underwater_points["adjust_Height"] = get_real_depth(height=underwater_points["Height (m MSL)"], water_level=sea_level)
 
     underwater_points = df[df["SignalType"] == 2]
     underwater_points["LocalDomainDistance"] = local_domain_distance(underwater_points)
@@ -135,7 +137,7 @@ def main(path_str):
     plt.title("LocalDomainDistance Histogram")
     # 图例
     plt.legend
-    
+
     fig = plt.gcf()
     fig.show()
     save_figure(fig, Path("local_domain_distance.png"), backup=True, target=backup_dir)
@@ -181,14 +183,14 @@ def main(path_str):
     )
     # 添加图例
     ax.legend()
-    
+
     fig = plt.gcf()
     fig.legend()
     fig.show()
-    
+
     img_path = Path("classified.png")
     save_figure(fig, img_path, backup=True, target=backup_dir)
-    
+
     file_name = data_path.stem + "_classified" + ".csv"
     df.to_csv(file_name, index=False)
 
