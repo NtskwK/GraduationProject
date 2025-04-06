@@ -117,7 +117,7 @@ def export_h5_to_csv(source: Path, target: Path = None):
         
         df = pd.DataFrame(merged_data)
 
-        filename = f"{source.stem}_gt{x}{y}.csv"
+        filename = f"{source.stem}_gt{x}{y}_original.csv"
         fp = target / filename
 
         df.to_csv(fp, index=False)
