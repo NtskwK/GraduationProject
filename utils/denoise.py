@@ -1,16 +1,17 @@
 import math
 import os
 import argparse
+from enum import Enum
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from scipy import stats
 from sklearn.cluster import DBSCAN, OPTICS
 
 from utils.data_io import save2dir, save_figure
 
-from enum import Enum
 
 backup_dir = Path(os.getcwd()) / "log"
 
@@ -22,7 +23,7 @@ class PointType(Enum):
     LandSurface = 2
 
 
-def get_normal_distribution(dataX: np.array, n_sigmas: float = 0.5, n: int = 0):
+def get_normal_distribution(dataX: np.ndarray, n_sigmas: float = 0.5, n: int = 0):
     """
     # 获得正态分布
 
@@ -58,11 +59,10 @@ def get_sea_level(df: pd.DataFrame, index: str = "Height (m MSL)", n_sigmas=0.5)
 
 
 def get_water_surface_points(
+    sea_level: float,
+    sea_range: tuple,
     df: pd.DataFrame,
-    index: str = "Height (m MSL)",
-    sea_level: float = None,
-    sea_range: tuple = None,
-    n=0,
+    index: str = "Height (m MSL)"
 ) -> pd.DataFrame:
     if sea_level is None or sea_range is None:
         sea_level, sea_range = get_sea_level(df, index)
@@ -74,25 +74,28 @@ def get_water_surface_points(
 
 def local_domain_distance(
     df: pd.DataFrame,
-    x: str = "Along-Track (m)",
-    y: str = "Height (m MSL)",
+    x_label: str = "Along-Track (m)",
+    y_label: str = "Height (m MSL)",
     k: int = 3,
     mean: bool = True,
-) -> np.array:
+) -> np.ndarray:
     """
     获取最近的k个点的距离
 
     Args:
-        df (pd.DataFrame): _description_
-        index (str, optional): _description_. Defaults to "Height (m MSL)".
+        df (pd.DataFrame): 数据
+        x_label (str, optional): x轴标签. Defaults to "Along-Track (m)".
+        y_label (str, optional): y轴标签. Defaults to "Height (m MSL)".
+        k (int, optional): 最近邻点数. Defaults to 3.
+        mean (bool, optional): 是否取平均值. Defaults to True.
     Outputs:
-        distances (np.array): _description_
+        distances (np.array): 平均距离
     """
-    x = df[x].values
-    h = df[y].values
+    X = df[x_label].values
+    h = df[y_label].values
 
     # 建立距离矩阵
-    dist_matrix = np.sqrt((x[:, np.newaxis] - x) ** 2 + (h[:, np.newaxis] - h) ** 2)
+    dist_matrix = np.sqrt((X[:, np.newaxis] - X) ** 2 + (h[:, np.newaxis] - h) ** 2)
     # 排除自身距离（对角线）
     # np.fill_diagonal(dist_matrix, np.nan)
 
@@ -131,8 +134,8 @@ def get_real_depth(height, water_level) -> float:
     beta = gamma - alpha
     delta_x = straight * math.cos(beta)
     delta_z = straight * math.sin(beta)
-    real_D = delta_z - height
-    return real_D
+    real_deep = delta_z - height
+    return real_deep
 
 
 def optics_clustering_denoise(
@@ -147,9 +150,9 @@ def optics_clustering_denoise(
     """_summary_
 
     Args:
-        under_water_points (pd.DataFrame): _description_
-        x_lable (str, optional): _description_. Defaults to "Along-Track (m)".
-        y_lable (str, optional): _description_. Defaults to "Height (m MSL)".
+        under_water_points (pd.DataFrame): 水下点云数据
+        x_lable (str, optional): Defaults to "Along-Track (m)".
+        y_lable (str, optional): Defaults to "Height (m MSL)".
         min_samples (int, optional): 核的邻域内点的数量. Defaults to 5.
         xi (float, optional): 簇的紧凑程度. Defaults to 0.5.
         min_cluster_size (float, optional): 簇的最小大小. Defaults to 0.05.
@@ -279,7 +282,7 @@ def main(path_str):
 
     df = None
 
-    with open(data_path, "r") as f:
+    with open(data_path, "r", encoding="utf-8") as f:
         df = pd.read_csv(f)
 
     # 将信号类型初始化为0
