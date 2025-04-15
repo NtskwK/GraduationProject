@@ -9,8 +9,9 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 from sklearn.cluster import DBSCAN, OPTICS
+from sklearn.neighbors import NearestNeighbors
 
-from utils.data_io import save2dir, save_figure
+from utils.data_io import save_figure
 
 
 backup_dir = Path(os.getcwd()) / "log"
@@ -59,10 +60,7 @@ def get_sea_level(df: pd.DataFrame, index: str = "Height (m MSL)", n_sigmas=0.5)
 
 
 def get_water_surface_points(
-    sea_level: float,
-    sea_range: tuple,
-    df: pd.DataFrame,
-    index: str = "Height (m MSL)"
+    sea_level: float, sea_range: tuple, df: pd.DataFrame, index: str = "Height (m MSL)"
 ) -> pd.DataFrame:
     if sea_level is None or sea_range is None:
         sea_level, sea_range = get_sea_level(df, index)
@@ -277,6 +275,75 @@ def adaptive_elliptical_denoise(
     print(f"样本数量：{num_points}")
     print(f"噪声点数量：{sum(is_noise)}")
     print(f"噪声点比例：{sum(is_noise) / num_points}")
+
+    return is_noise
+
+
+def adaptive_optics(X: np.ndarray, eps: float, rough:bool=False) -> np.ndarray:
+    def rough_denoise(X):
+        # 计算高程直方图
+        hist, bin_edges = np.histogram(X[:, 1], bins=20)
+        threshold = np.where(hist == np.max(hist))[0][0] *4 + np.min(bin_edges)        # 去除低于阈值的光子
+        X = X[X[:, 1] > threshold]
+        return X
+
+    if rough:
+        X = rough_denoise(X)
+
+    # 精细去噪
+    def fine_denoise(X, eps=eps):
+        # 计算每个点的KNN距离
+        knn = NearestNeighbors(n_neighbors=18)
+        knn.fit(X)
+        distances, indices = knn.kneighbors(X)
+        avg_distances = np.mean(distances, axis=1)
+
+        # DBSCAN聚类
+        db = DBSCAN(eps, min_samples=5)
+        labels = db.fit_predict(avg_distances.reshape(-1, 1))
+
+        # 确定OPTICS的最小样本数
+        min_samples = np.max([np.sum(labels == k) for k in np.unique(labels)]) + 1
+        # OPTICS聚类
+        opt = OPTICS(min_samples=min_samples)
+        opt.fit(X)
+        labels = opt.labels_
+        return labels
+
+    labels = fine_denoise(X, eps)
+
+    return labels
+
+
+def adaptive_optics_denoise(
+    under_water_points: pd.DataFrame,
+    x_lable: str = "Along-Track (m)",
+    y_lable: str = "Height (m MSL)",
+    eps: float = 0.3,
+) -> np.ndarray:
+    """
+    Perform adaptive optics denoising on underwater points.
+    This function applies an adaptive optics algorithm to identify noise points
+    in a given set of underwater points based on their spatial distribution.
+    Args:
+        under_water_points (pd.DataFrame): A DataFrame containing the underwater
+            points data with at least two columns corresponding to the x and y
+            coordinates.
+        x_lable (str, optional): The column name in the DataFrame representing
+            the x-axis values. Defaults to "Along-Track (m)".
+        y_lable (str, optional): The column name in the DataFrame representing
+            the y-axis values. Defaults to "Height (m MSL)".
+        eps (float, optional): The maximum distance between two samples for one
+            to be considered as in the neighborhood of the other. Defaults to 0.3.
+    Returns:
+        np.ndarray: A boolean array where `True` indicates a noise point and
+        `False` indicates a non-noise point.
+    """
+    X = under_water_points[[x_lable, y_lable]].values
+    labels = adaptive_optics(X, eps=eps)
+    is_noise = labels == -1
+
+    evaluating_denoise_results(is_noise)
 
     return is_noise
 
