@@ -1,8 +1,10 @@
 import shutil
-
+import tqdm
 from pathlib import Path
 from datetime import datetime
 from os import cpu_count
+import torch
+from torch.utils import data
 
 from matplotlib.figure import Figure
 import numpy as np
@@ -85,20 +87,28 @@ def save_figure(
 
 def save_csv(
     df: pd.DataFrame,
-    data_name: Path,
-    tag: str,
+    data_path: Path,
     *args,
+    tag: str = "",
     backup: bool = False,
     overwrite: bool = False,
     **kwargs,
 ) -> bool:
 
-    filename = data_name + "_" + tag + ".csv"
+    if len(tag):
+        filename = data_path.stem + "_" + tag + ".csv"
+    else:
+        filename = data_path
     filepath = Path(filename)
 
-    if filepath.exists() and not overwrite:
-        print(f"{filepath} already exists, will be overwritten!")
-        return False
+    if filepath.exists():
+        if not overwrite:
+            print(f"{filepath} already exists, operation cancelled!")
+            return False
+        else: 
+            if not input(f"{filepath} already exists! It will be overwritten!(y/[n])").lower().startswith("y"):
+                print("Overwrite operation cancelled by user.")
+                return False
 
     df.to_csv(filepath)
     print(f"Save {filepath} successfully!")
@@ -142,11 +152,17 @@ def get_value_from_raster(
 
     rows, cols = rowcol(src.transform, xs, ys)
 
-    assert isinstance(index,int) or isinstance(index, list[int]), "Band index must be an int or a list of ints"
+    assert isinstance(index, int) or isinstance(
+        index, list[int]
+    ), "Band index must be an int or a list of ints"
 
     if isinstance(index, list):
-        assert all(isinstance(i, int) for i in index), "Band index must be an int or a list of ints"
-        assert len(index) < src.count, "Band index list length does not match the number of bands"
+        assert all(
+            isinstance(i, int) for i in index
+        ), "Band index must be an int or a list of ints"
+        assert (
+            len(index) < src.count
+        ), "Band index list length does not match the number of bands"
         assert all(i <= src.count for i in index), "Band index out of range"
         assert all(i > 0 for i in index), "Band index must be greater than 0"
 
@@ -157,11 +173,9 @@ def get_value_from_raster(
             values[i] = raster_data[rows, cols]
 
     elif index == 0:
-        # Read all bands
-        values = np.zeros((src.count, len(xs)), dtype=src.dtypes[0])
-        for i in range(src.count):
-            raster_data = src.read(i + 1)
-            values[i] = raster_data[rows, cols]
+        # 一次性读取所有波段
+        all_data = src.read()  # shape: (band, height, width)
+        values = all_data[:, rows, cols]
 
     else:
         # Read only the specified band
