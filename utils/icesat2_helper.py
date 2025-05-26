@@ -4,10 +4,11 @@ import itertools
 from pathlib import Path
 from typing import Counter
 
-import h5py
-
 from loguru import logger
+
+import h5py
 import pandas as pd
+
 
 def is_h5_valid(file: Path) -> bool:
     assert file.exists(), "File does not exist"

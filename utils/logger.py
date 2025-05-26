@@ -1,6 +1,5 @@
 from loguru import logger
-import os
-import time
+
 
 class CliLogger:
     def __init__(self, log_dir="logs", log_level="DEBUG"):

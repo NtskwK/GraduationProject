@@ -1,10 +1,7 @@
 import shutil
-import tqdm
 from pathlib import Path
 from datetime import datetime
 from os import cpu_count
-import torch
-from torch.utils import data
 
 from matplotlib.figure import Figure
 import numpy as np
@@ -96,6 +93,8 @@ def save_csv(
 ) -> bool:
 
     if len(tag):
+        if not isinstance(data_path, Path):
+            data_path = Path(data_path)
         filename = data_path.stem + "_" + tag + ".csv"
     else:
         filename = data_path
@@ -105,8 +104,12 @@ def save_csv(
         if not overwrite:
             print(f"{filepath} already exists, operation cancelled!")
             return False
-        else: 
-            if not input(f"{filepath} already exists! It will be overwritten!(y/[n])").lower().startswith("y"):
+        else:
+            if (
+                not input(f"{filepath} already exists! It will be overwritten!(y/[n])")
+                .lower()
+                .startswith("y")
+            ):
                 print("Overwrite operation cancelled by user.")
                 return False
 

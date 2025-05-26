@@ -18,7 +18,6 @@ class Sentinel2Bands(Enum):
     @classmethod
     def get_band_names(cls):
         return [band.value for band in cls]
-    
 
 
 class ICESAT2Properties(Enum):
