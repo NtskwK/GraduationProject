@@ -1,14 +1,9 @@
 import argparse
 import pprint
-
 from pathlib import Path
 
 import pandas
-import matplotlib
 import matplotlib.pyplot as plt
-
-import h5py
-
 
 class icesat2data:
 
