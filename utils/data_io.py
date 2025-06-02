@@ -115,13 +115,11 @@ def save_csv(
 
     df.to_csv(filepath)
     print(f"Save {filepath} successfully!")
-
+    print(f"filename: {filename}")
     if backup:
         filepath = save2dir(
             filepath,
             backup_name=filename,
-            *args,
-            **kwargs,
         )
 
     return filepath.exists()

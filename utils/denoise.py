@@ -18,10 +18,12 @@ backup_dir = Path(os.getcwd()) / "log"
 
 
 class PointType(Enum):
-    Noise = -1
-    NotClassified = 0
-    WaterSurface = 1
-    LandSurface = 2
+    Noise           = "Noise Point"
+    NotClassified   = "NotClassified Point"
+    WaterSurface    = "WaterSurface Point"
+    UnderWater      = "UnderWater Point"
+    Submarine       = "Submarine Point"
+    Valid           = "Valid Point"
 
 
 def get_normal_distribution(dataX: np.ndarray, n_sigmas: float = 0.5, n: int = 0):

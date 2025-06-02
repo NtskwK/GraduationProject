@@ -3,38 +3,53 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import make_interp_spline
 
+from .property import ICESAT2Properties
 
 def get_plt(
     df: pd.DataFrame,
-    x: str = "Along-Track (m)",
-    y: str = "Height (m MSL)",
-    title: str | None = None,
+    title: str,
+    x_lable: str = ICESAT2Properties.AlongTrack.value,
+    y_lable: str = ICESAT2Properties.Height_MSL.value,
+    type_lable: str = "point_type",
     straight: bool = False,
     curve: bool = False,
     interpolations: int = 1000,
     k: int = 3,
     bc_type: str = "clamped",
+    async_plt: bool = True,
 ):
+    distance_range = df[y_lable].max() - df[y_lable].min()
+
+
     fig, ax = plt.subplots()
-    df.plot(
-        x=x,
-        y=y,
-        ax=ax,
-        kind="scatter",
-        s=0.5,
-        title=y if title is None else title,
-        c="point_type",
-        colormap="Set1_r",
-    )
+    plt.title(title)
+    plt.xlabel(x_lable)
+    plt.ylabel(y_lable)
+    plt.ylim(df[y_lable].min() - distance_range * 0.1, df[y_lable].max() + distance_range * 0.1)
+
+    if type_lable in df.columns:
+        for point_type in df[type_lable].unique():
+            ax.scatter(
+                x=df[df[type_lable] == point_type][x_lable],
+                y=df[df[type_lable] == point_type][y_lable],
+                s=1,
+                label=point_type,
+            )
+    else:
+        ax.scatter(
+            x=df[x_lable],
+            y=df[y_lable],
+            s=1
+        )
 
     # 直线
     if straight:
         # 紫色
-        ax.plot(df[x], df[y], color="purple", linewidth=0.5)
+        ax.plot(df[x_lable], df[y_lable], color="purple", linewidth=0.5)
 
     if curve:
-        l = np.linspace(df[x].min(), df[x].max(), interpolations)
-        mode = make_interp_spline(df[x], df[y], k=k, bc_type=bc_type)
+        l = np.linspace(df[x_lable].min(), df[x_lable].max(), interpolations)
+        mode = make_interp_spline(df[x_lable], df[y_lable], k=k, bc_type=bc_type)
         y_hat = mode(l)
         # 粉色
         ax.plot(
@@ -43,6 +58,6 @@ def get_plt(
             color="black",
             linewidth=0.5,
         )
-
-    plt.show()
+    plt.legend()
+    plt.show(block = (not async_plt))
     return fig, ax

@@ -18,7 +18,7 @@ def is_h5_valid(file: Path) -> bool:
     if re.search(pattern, file.name):
         return True
     else:
-        print("It isn't a atl03.h5 file!")
+        logger.warning("It isn't a atl03.h5 file!")
         return False
 
 
@@ -40,9 +40,9 @@ def read_hdf5_atl03_beam_h5py(file_path, beam, verbose=False):
 
     # 输出HDF5文件信息
     if verbose:
-        print(file_id.filename)
-        print(list(file_id.keys()))
-        print(list(file_id["METADATA"].keys()))
+        logger.info(f"file name: {file_id.filename}")
+        logger.info(f"file keys: {list(file_id.keys())}")
+        logger.info(f"Metadata keys: {list(file_id['METADATA'].keys())}")
 
     # 为ICESat-2 ATL03变量和属性分配python字典
     atl03_mds = {}
@@ -50,7 +50,7 @@ def read_hdf5_atl03_beam_h5py(file_path, beam, verbose=False):
     # 读取文件中每个输入光束
     beams = [k for k in file_id.keys() if bool(re.match("gt\\d[lr]", k))]
     if beam not in beams:
-        print("请填入正确的光束代码")
+        logger.error("请填入正确的光束代码")
         return
 
     atl03_mds["heights"] = {}
@@ -70,8 +70,7 @@ def read_hdf5_atl03_beam_h5py(file_path, beam, verbose=False):
         for key, val in file_id[beam]["bckgrd_atlas"].items():
             atl03_mds["bckgrd_atlas"][key] = val[:]
     except KeyError as e:
-        print(f"error in beam:{beam}")
-        print(f"KeyError: {e}")
+        logger.warning(f"{beam}: KeyError: {e}")
         return None
 
     return atl03_mds
@@ -151,9 +150,6 @@ def export_h5_to_csv(source: Path, target: Path = None):
         # 使用列表推导式获取所有列表的长度，并计算众数
         values = [len(v) for v in merged_data.values()]
         mode = Counter(values).most_common(1)[0][0]
-
-        # for k, v in merged_data.items():
-        #     print(k, len(v))
 
         num = len(merged_data["h_ph"])
         logger.debug({k: len(v) for k, v in merged_data.items() if len(v) == num})
