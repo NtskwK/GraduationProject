@@ -2,14 +2,18 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import make_interp_spline
+from typing import Optional
 
 from .property import ICESAT2Properties
+
 
 def get_plt(
     df: pd.DataFrame,
     title: str,
     x_lable: str = ICESAT2Properties.AlongTrack.value,
     y_lable: str = ICESAT2Properties.Height_MSL.value,
+    x_lable_str: Optional[str] = None,
+    y_lable_str: Optional[str] = None,
     type_lable: str = "point_type",
     straight: bool = False,
     curve: bool = False,
@@ -18,13 +22,18 @@ def get_plt(
     bc_type: str = "clamped",
     async_plt: bool = True,
 ):
+    
     distance_range = df[y_lable].max() - df[y_lable].min()
 
+    if x_lable_str is None:
+        x_lable_str = x_lable
+    if y_lable_str is None:
+        y_lable_str = y_lable
 
     fig, ax = plt.subplots()
     plt.title(title)
-    plt.xlabel(x_lable)
-    plt.ylabel(y_lable)
+    plt.xlabel(x_lable_str)
+    plt.ylabel(y_lable_str)
     plt.ylim(df[y_lable].min() - distance_range * 0.1, df[y_lable].max() + distance_range * 0.1)
 
     if type_lable in df.columns:

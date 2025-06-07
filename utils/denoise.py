@@ -18,12 +18,19 @@ backup_dir = Path(os.getcwd()) / "log"
 
 
 class PointType(Enum):
-    Noise           = "Noise Point"
-    NotClassified   = "NotClassified Point"
-    WaterSurface    = "WaterSurface Point"
-    UnderWater      = "UnderWater Point"
-    Submarine       = "Submarine Point"
-    Valid           = "Valid Point"
+    Noise           = "噪声点"
+    NotClassified   = "未分类的点"
+    WaterSurface    = "水面点"
+    UnderWater      = "水下点"
+    Submarine       = "水底点"
+    Valid           = "有效点"
+# class PointType(Enum):
+#     Noise           = "Noise Point"
+#     NotClassified   = "NotClassified Point"
+#     WaterSurface    = "WaterSurface Point"
+#     UnderWater      = "UnderWater Point"
+#     Submarine       = "Submarine Point"
+#     Valid           = "Valid Point"
 
 
 def get_normal_distribution(dataX: np.ndarray, n_sigmas: float = 0.5, n: int = 0):

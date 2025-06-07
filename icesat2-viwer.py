@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 
 from utils.plot import get_plt
 
+
+plt.rcParams["font.sans-serif"] = ["Microsoft YaHei"]
+
 class icesat2data:
 
     path_str = Path(
