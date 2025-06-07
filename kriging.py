@@ -1,12 +1,14 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pykrige.ok import OrdinaryKriging
 import rasterio
 from rasterio.transform import Affine
-from pathlib import Path
-from utils.property import ICESAT2Properties
 from loguru import logger
+
+from utils.property import ICESAT2Properties
 
 # 读取数据
 input_csv = Path("kriging.csv")
@@ -93,7 +95,7 @@ cbar.set_label("Height (m MSL)")
 
 # 标记原始数据点范围
 # plt.scatter(x, y, c=z, cmap='jet', edgecolor='k', s=50, zorder=5)
-plt.title(f"Kriging interpolation results", fontsize=16)
+plt.title("Kriging interpolation results", fontsize=16)
 plt.xlabel("Longitude (deg)", fontsize=14)
 plt.ylabel("Latitude (deg)", fontsize=14)
 plt.legend()
