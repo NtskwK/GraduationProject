@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import make_interp_spline
 from typing import Optional
 
+from utils.denoise import PointType
+
 from .property import ICESAT2Properties
 
 
@@ -22,6 +24,7 @@ def get_plt(
     bc_type: str = "clamped",
     async_plt: bool = True,
 ):
+    plt.rcParams["font.family"] = ["Times New Roman","SimHei"]
     
     distance_range = df[y_lable].max() - df[y_lable].min()
 
@@ -36,6 +39,20 @@ def get_plt(
     plt.ylabel(y_lable_str)
     plt.ylim(df[y_lable].min() - distance_range * 0.1, df[y_lable].max() + distance_range * 0.1)
 
+    def get_color(point_type: str) -> str:
+        if point_type == PointType.Noise.value:
+            return "orange"
+        elif point_type == PointType.Submarine.value:
+            return "green"
+        elif point_type == PointType.WaterSurface.value:
+            return "red"
+        elif point_type == PointType.UnderWater.value:
+            return "cyan"
+        elif point_type == PointType.Valid.value:
+            return "purple"
+        else:
+            return None
+
     if type_lable in df.columns:
         for point_type in df[type_lable].unique():
             ax.scatter(
@@ -43,6 +60,7 @@ def get_plt(
                 y=df[df[type_lable] == point_type][y_lable],
                 s=1,
                 label=point_type,
+                color=get_color(point_type)
             )
     else:
         ax.scatter(

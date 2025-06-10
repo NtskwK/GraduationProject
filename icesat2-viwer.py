@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from utils.plot import get_plt
 
 
-plt.rcParams["font.sans-serif"] = ["Microsoft YaHei"]
+plt.rcParams["font.family"] = ["Times New Roman","SimHei"]
+
 
 class icesat2data:
 
