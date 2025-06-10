@@ -45,3 +45,7 @@ output.json
 
 # package files
 *.7z
+
+# pixi environments
+.pixi
+*.egg-info
