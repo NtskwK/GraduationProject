@@ -4,9 +4,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pykrige.ok import OrdinaryKriging
-import rasterio
-from rasterio.transform import Affine
 from loguru import logger
+from osgeo import gdal
 
 from utils.property import ICESAT2Properties
 
@@ -67,24 +66,32 @@ logger.info("执行插值...")
 z_interp, ss = OK.execute("grid", grid_lon, grid_lat)
 
 # 创建GeoTIFF文件（地理参考信息已更新）
-transform = Affine.translation(
-    grid_lon[0] - (grid_lon[1] - grid_lon[0]) / 2,
-    grid_lat[-1] + (grid_lat[1] - grid_lat[0]) / 2,
-) * Affine.scale(grid_lon[1] - grid_lon[0], -(grid_lat[1] - grid_lat[0]))
+driver = gdal.GetDriverByName('GTiff')
+dataset = driver.Create(
+    str(output_tif),
+    z_interp.shape[1],  # width
+    z_interp.shape[0],  # height
+    1,                  # band count
+    gdal.GDT_Float32    # 数据类型
+)
 
-with rasterio.open(
-    output_tif,
-    "w",
-    driver="GTiff",
-    height=z_interp.shape[0],
-    width=z_interp.shape[1],
-    count=1,
-    dtype=z_interp.dtype,
-    crs="EPSG:4326",  # WGS 84坐标系
-    transform=transform,
-) as dst:
-    dst.write(z_interp, 1)
+# 设置地理参考（GDAL geotransform）
+geotransform = (
+    grid_lon[0] - (grid_lon[1] - grid_lon[0]) / 2,  # top left x
+    grid_lon[1] - grid_lon[0],                      # w-e pixel resolution
+    0.0,                                            # rotation (0 if north is up)
+    grid_lat[-1] + (grid_lat[1] - grid_lat[0]) / 2, # top left y
+    0.0,                                            # rotation (0 if north is up)
+    -(grid_lat[1] - grid_lat[0])                    # n-s pixel resolution (negative)
+)
 
+dataset.SetGeoTransform(geotransform)
+dataset.SetProjection('EPSG:4326')
+# 写入数据
+band = dataset.GetRasterBand(1)
+band.WriteArray(z_interp)
+band.FlushCache()
+dataset = None
 print(f"GeoTIFF文件已保存至: {output_tif}")
 
 # 可视化插值结果（带扩展区域）
