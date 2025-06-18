@@ -1,6 +1,9 @@
 venv
+.venv
 
 *.pyc
+
+*.drawio.bkp
 
 .conda
 
@@ -10,8 +13,10 @@ data/*
 .dodsrc
 record/*
 
+log/*
+./*.png
+
 # preprocessed data
-*.png
 *.csv
 *.las
 *.pkl
@@ -21,3 +26,26 @@ record/*
 
 profile.json
 output.json
+
+*.aux
+*.lof
+*.log
+*.lot
+*.out
+*.toc
+*.bbl
+*.blg
+*.thm
+*.nav
+*.xml
+*.snm
+*.bcf
+
+.DS_Store
+
+# package files
+*.7z
+
+# pixi environments
+.pixi
+*.egg-info

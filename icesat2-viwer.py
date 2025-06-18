@@ -1,19 +1,20 @@
 import argparse
 import pprint
-
 from pathlib import Path
 
 import pandas
-import matplotlib
 import matplotlib.pyplot as plt
 
-import h5py
+from utils.plot import get_plt
+
+
+plt.rcParams["font.family"] = ["Times New Roman","SimHei"]
 
 
 class icesat2data:
 
     path_str = Path(
-        "data/icepyx/2022MaoweiSea/20220105/processed_ATL03_20220105120423_02171407_006_01_gt2l.csv")
+        r"E:\Documents\CourseStudy\GraduationProject\program\data\icepyx\GoldenBay\20221230\processed_ATL03_20221230185202_01561807_006_02_gt3r.csv")
     df = None
     xlim = None
     ylim = None
@@ -24,8 +25,11 @@ class icesat2data:
             self.path_str = Path(path_str)
 
         assert Path(self.path_str).exists()
-        with open(self.path_str, 'r') as f:
+        with open(self.path_str, 'r',encoding="utf-8") as f:
             self.df = pandas.read_csv(f)
+
+        print(f"Open File:\n{self.path_str}\n")
+        print(f"Data ID:\n{self.path_str.stem}\n")
 
     def show_info(self):
         pprint.pprint(
@@ -45,16 +49,18 @@ class icesat2data:
 
     def plot(self):
         # 画图
-        self.df.plot(x='Latitude (deg)', y='Height (m MSL)',
-                     kind='scatter', s=1)
-        if self.xlim is not None:
-            plt.xlim(self.xlim)
-        if self.ylim is not None:
-            plt.ylim(self.ylim)
+        # self.df.plot(x='Latitude (deg)', y='Height (m MSL)',
+        #              kind='scatter', s=1)
+        # if self.xlim is not None:
+        #     plt.xlim(self.xlim)
+        # if self.ylim is not None:
+        #     plt.ylim(self.ylim)
 
-        plt.title(self.path_str.name)
-        plt.show()
-        self.save_img(tag="plot")
+        # plt.title(self.path_str.name)
+        # plt.show()
+        # self.save_img(tag="plot")
+        get_plt(self.df, title=self.path_str.stem)
+
 
     def hist(self):
         """
@@ -120,8 +126,13 @@ class icesat2data:
         print(f"已保存修改范围到{fn}")
 
 
-def main(fp: str):
+def main(fp: str, show: bool = False):
     data = icesat2data(fp)
+
+    if show:
+        data.plot()
+        exit()
+
     while True:
         print("""
 请选择操作：
@@ -138,13 +149,12 @@ def main(fp: str):
             data.hist()
         elif choice == "3":
             data.cut()
+            data.plot()
         elif choice == "4":
             data.save_cut()
+            data.plot()
         elif choice == "5":
             break
-
-        data.plot()
-
 
 if __name__ == '__main__':
     # 创建解析器
@@ -153,7 +163,8 @@ if __name__ == '__main__':
     # 添加参数
     parser.add_argument("--FilePath", type=str, help="文件路径",
                         default=None)
+    parser.add_argument("--show", action="store_true", default=False, help="显示图像")
 
     args = parser.parse_args()
 
-    main(args.FilePath)
+    main(args.FilePath, args.show)

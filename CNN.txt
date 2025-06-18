@@ -1,0 +1,11 @@
+Feature importance (descending):
+Height (m MSL): 0.0779
+B5: 0.0698
+B4: 0.0660
+B2: 0.0638
+B3: 0.0622
+B1: 0.0571
+
+#########################
+Final: Train Acc: 0.7474, Test Acc: 0.7083
+Test Loss: 0.0185
