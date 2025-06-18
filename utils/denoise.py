@@ -24,13 +24,14 @@ class PointType(Enum):
     UnderWater      = "水下点"
     Submarine       = "水底点"
     Valid           = "有效点"
-# class PointType(Enum):
-#     Noise           = "Noise Point"
-#     NotClassified   = "NotClassified Point"
-#     WaterSurface    = "WaterSurface Point"
-#     UnderWater      = "UnderWater Point"
-#     Submarine       = "Submarine Point"
-#     Valid           = "Valid Point"
+
+class PointTypeEN(Enum):
+    Noise           = "Noise Point"
+    NotClassified   = "NotClassified Point"
+    WaterSurface    = "WaterSurface Point"
+    UnderWater      = "UnderWater Point"
+    Submarine       = "Submarine Point"
+    Valid           = "Valid Point"
 
 
 def get_normal_distribution(dataX: np.ndarray, n_sigmas: float = 0.5, n: int = 0):
